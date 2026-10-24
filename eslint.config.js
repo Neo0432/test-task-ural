@@ -22,6 +22,7 @@ export default [
       globals: globals.browser,
     },
     settings: { react: { version: 'detect' } },
+    rules: { 'react/prop-types': 'off' },
   },
   {
     files: ['*.config.js', '__tests__/**/*.{js,jsx}'],

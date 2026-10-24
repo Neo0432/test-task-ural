@@ -3,3 +3,5 @@ dist/
 .env.local
 docs/pdca/
 docs/team/
+
+.env
