@@ -1,10 +1,11 @@
 import { useAppDispatch, useAppSelector } from '../../../shared/lib/store-hooks.js';
 import { Loader } from '../../../shared/ui/loader.jsx';
-import { fetchOffers, selectBrands, selectSelectedBrand } from '../model/part-search-slice.js';
+import { fetchOffers, selectBrands, selectNumber, selectSelectedBrand } from '../model/part-search-slice.js';
 
 export const BrandList = () => {
   const dispatch = useAppDispatch();
-  const { number, status, items, error } = useAppSelector(selectBrands);
+  const number = useAppSelector(selectNumber);
+  const { status, items, error } = useAppSelector(selectBrands);
   const selectedBrand = useAppSelector(selectSelectedBrand);
 
   if (status === 'loading') {

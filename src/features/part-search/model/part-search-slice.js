@@ -1,37 +1,10 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { fetchGoods } from '../../../shared/api/fetch-goods.js';
+import { toBrands, toOfferRows } from '../lib/goods-mappers.js';
 
-const EMPTY_CELL = '—';
-
-const toBrands = (goods) => {
-  const brands = new Map();
-  goods.forEach(({ brand, name }) => {
-    if (!brands.has(brand)) {
-      brands.set(brand, { brand, name });
-    }
-  });
-  return [...brands.values()];
-};
-
-const toOfferRows = (goods) =>
-  goods
-    .flatMap((item) => [item, ...(item.analogues ?? [])])
-    .flatMap(({ brand, number, name, warehouses }) =>
-      warehouses?.length
-        ? warehouses.map(({ code, price, stock }) => ({
-            brand,
-            number,
-            name,
-            warehouse: code || EMPTY_CELL,
-            price: Number(price).toFixed(2),
-            stock,
-          }))
-        : [{ brand, number, name, warehouse: EMPTY_CELL, price: EMPTY_CELL, stock: 0 }],
-    );
-
-const initialBrands = { number: '', status: 'idle', items: [], error: null };
-const initialOffers = { brand: null, status: 'idle', rows: [], error: null, requestId: null };
-const initialState = { brands: initialBrands, offers: initialOffers };
+const initialBrands = { status: 'idle', items: [], error: null, requestId: null };
+const initialOffers = { status: 'idle', rows: [], error: null, requestId: null };
+const initialState = { number: '', selectedBrand: null, brands: initialBrands, offers: initialOffers };
 
 export const fetchBrands = createAsyncThunk('partSearch/fetchBrands', (number, { signal }) =>
   fetchGoods({ number }, signal),
@@ -41,6 +14,8 @@ export const fetchOffers = createAsyncThunk('partSearch/fetchOffers', ({ number,
   fetchGoods({ number, brand, analogues: 'on' }, signal),
 );
 
+const isStale = (request, { meta }) => meta.aborted || meta.requestId !== request.requestId;
+
 const partSearchSlice = createSlice({
   name: 'partSearch',
   initialState,
@@ -49,38 +24,39 @@ const partSearchSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      .addCase(fetchBrands.pending, (state, action) => {
-        state.brands = { ...initialBrands, number: action.meta.arg, status: 'loading' };
+      .addCase(fetchBrands.pending, (state, { meta }) => {
+        state.number = meta.arg;
+        state.selectedBrand = null;
+        state.brands = { ...initialBrands, status: 'loading', requestId: meta.requestId };
         state.offers = initialOffers;
       })
       .addCase(fetchBrands.fulfilled, (state, action) => {
+        if (isStale(state.brands, action)) {
+          return;
+        }
         state.brands.status = 'succeeded';
         state.brands.items = toBrands(action.payload);
       })
       .addCase(fetchBrands.rejected, (state, action) => {
-        if (action.meta.aborted) {
+        if (isStale(state.brands, action)) {
           return;
         }
         state.brands.status = 'failed';
         state.brands.error = action.error.message;
       })
-      .addCase(fetchOffers.pending, (state, action) => {
-        state.offers = {
-          ...initialOffers,
-          brand: action.meta.arg.brand,
-          status: 'loading',
-          requestId: action.meta.requestId,
-        };
+      .addCase(fetchOffers.pending, (state, { meta }) => {
+        state.selectedBrand = meta.arg.brand;
+        state.offers = { ...initialOffers, status: 'loading', requestId: meta.requestId };
       })
       .addCase(fetchOffers.fulfilled, (state, action) => {
-        if (action.meta.requestId !== state.offers.requestId) {
+        if (isStale(state.offers, action)) {
           return;
         }
         state.offers.status = 'succeeded';
         state.offers.rows = toOfferRows(action.payload);
       })
       .addCase(fetchOffers.rejected, (state, action) => {
-        if (action.meta.requestId !== state.offers.requestId) {
+        if (isStale(state.offers, action)) {
           return;
         }
         state.offers.status = 'failed';
@@ -91,8 +67,9 @@ const partSearchSlice = createSlice({
 
 export const { searchCleared } = partSearchSlice.actions;
 
+export const selectNumber = (state) => state.partSearch.number;
+export const selectSelectedBrand = (state) => state.partSearch.selectedBrand;
 export const selectBrands = (state) => state.partSearch.brands;
 export const selectOffers = (state) => state.partSearch.offers;
-export const selectSelectedBrand = (state) => state.partSearch.offers.brand;
 
 export default partSearchSlice.reducer;

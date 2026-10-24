@@ -2,6 +2,8 @@ import { useAppSelector } from '../../../shared/lib/store-hooks.js';
 import { Loader } from '../../../shared/ui/loader.jsx';
 import { selectOffers } from '../model/part-search-slice.js';
 
+const EMPTY_CELL = '—';
+
 export const OffersTable = () => {
   const { status, rows, error } = useAppSelector(selectOffers);
 
@@ -45,8 +47,8 @@ export const OffersTable = () => {
               <td>{row.brand}</td>
               <td>{row.number}</td>
               <td>{row.name}</td>
-              <td>{row.warehouse}</td>
-              <td className="text-end">{row.price}</td>
+              <td>{row.warehouse ?? EMPTY_CELL}</td>
+              <td className="text-end">{row.price === null ? EMPTY_CELL : row.price.toFixed(2)}</td>
               <td className="text-end">{row.stock}</td>
             </tr>
           ))}
